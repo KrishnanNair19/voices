@@ -9,9 +9,9 @@ dist/
 build/
 .expo/
 
-# Environment variables
+# Environment variables — all variants, in any subdirectory
 .env
-.env.local
+.env.*
 .env.*.local
 
 # Editor

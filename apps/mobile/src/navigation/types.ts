@@ -2,17 +2,16 @@
  * Route parameter type maps for all navigators in @voices/mobile.
  *
  * Architecture:
- *   RootStack (NativeStack — modal presentation)
- *   ├── MainApp → TabNavigator
- *   └── RecordModal → RecordStack
+ *   RootStack (NativeStack)
+ *   ├── Auth       → AuthStack       (unauthenticated)
+ *   ├── Onboarding → OnboardingStack (authenticated but wizard incomplete)
+ *   ├── MainApp    → TabNavigator    (fully authenticated)
+ *   └── RecordModal → RecordStack   (modal, presented above tabs)
  *
  *   TabNavigator (BottomTabs)
- *   ├── Explore → ExploreStack
+ *   ├── Explore  → ExploreStack
  *   ├── Journeys → JourneysStack
- *   └── Profile → ProfileStack
- *
- * Typed screen props helpers are exported at the bottom so each screen
- * can import its own props type without repeating the generic boilerplate.
+ *   └── Profile  → ProfileStack
  */
 
 import type {
@@ -23,7 +22,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs'
 
 // ── DraftStory ────────────────────────────────────────────────────────────────
-// Temporary: lives here until @voices/core defines it in Phase 1.
+// Temporary: lives here until @voices/core defines it in a future phase.
 export type DraftStory = {
   audioUri: string
   trimStart: number    // milliseconds from start of recording
@@ -35,11 +34,33 @@ export type DraftStory = {
 
 // ── Root stack ────────────────────────────────────────────────────────────────
 export type RootStackParamList = {
+  /** Auth stack — shown when unauthenticated or email not yet verified */
+  Auth: NavigatorScreenParams<AuthStackParamList>
+  /** Onboarding wizard — shown after first authentication */
+  Onboarding: NavigatorScreenParams<OnboardingStackParamList>
   /** Main app shell — houses the tab navigator */
   MainApp: NavigatorScreenParams<TabParamList>
-  /** Record flow — presented as a modal (slides up) */
+  /** Record flow — presented as a modal (slides up above tabs) */
   RecordModal: undefined
-  Login: undefined
+}
+
+// ── Auth stack ────────────────────────────────────────────────────────────────
+export type AuthStackParamList = {
+  Landing: undefined
+  EmailSignUp: undefined
+  EmailLogin: undefined
+  ForgotPassword: undefined
+  /** email is passed so the pending screen can display it */
+  EmailVerificationPending: { email: string }
+}
+
+// ── Onboarding stack ─────────────────────────────────────────────────────────
+export type OnboardingStackParamList = {
+  OnboardingWelcome: undefined
+  OnboardingIdentity: undefined
+  OnboardingUsername: undefined
+  OnboardingProfile: undefined
+  OnboardingInterests: undefined
 }
 
 // ── Tab navigator ─────────────────────────────────────────────────────────────
@@ -80,18 +101,13 @@ export type RecordStackParamList = {
   PhotoPreview: { photoUri: string }
 }
 
-// ── Auth stack ────────────────────────────────────────────────────────────────
-export type AuthStackParamList = {
-  Login: undefined
-}
-
 // ── Screen props helpers ──────────────────────────────────────────────────────
 // Import from this file in each screen to get fully typed navigation + route.
 //
 // Example:
-//   import type { ExploreScreenProps } from '@/navigation/types'
-//   export default function StoryListenScreen({ route }: ExploreScreenProps<'StoryListen'>) {
-//     const { storyId } = route.params
+//   import type { AuthScreenProps } from '@/navigation/types'
+//   export default function LandingScreen({ navigation }: AuthScreenProps<'Landing'>) {
+//     navigation.navigate('EmailSignUp')
 //   }
 
 export type RootStackScreenProps<T extends keyof RootStackParamList> =
@@ -100,6 +116,12 @@ export type RootStackScreenProps<T extends keyof RootStackParamList> =
 export type AuthScreenProps<T extends keyof AuthStackParamList> =
   CompositeScreenProps<
     NativeStackScreenProps<AuthStackParamList, T>,
+    NativeStackScreenProps<RootStackParamList>
+  >
+
+export type OnboardingScreenProps<T extends keyof OnboardingStackParamList> =
+  CompositeScreenProps<
+    NativeStackScreenProps<OnboardingStackParamList, T>,
     NativeStackScreenProps<RootStackParamList>
   >
 

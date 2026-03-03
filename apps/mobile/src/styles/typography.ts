@@ -177,6 +177,13 @@ export const typeScale = {
     letterSpacing: 0.2,
   } satisfies TextStyle,
 
+  captionMedium: {
+    fontFamily: fontFamily.regular,
+    fontSize: clampedScale(12),
+    lineHeight: lh(clampedScale(12), 1.4),
+    letterSpacing: 0.2,
+  } satisfies TextStyle,
+
   captionSmall: {
     fontFamily: fontFamily.regular,
     fontSize: clampedScale(11),

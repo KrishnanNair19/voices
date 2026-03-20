@@ -6,7 +6,7 @@
  * Firebase resolves the new user — no manual navigation needed here.
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   getFirebaseAuth,
@@ -14,6 +14,7 @@ import {
   signInWithEmail,
   getAuthErrorMessage,
   signInWithGooglePopup,
+  useAuthStore,
 } from '@voices/core'
 import {
   validateLoginForm,
@@ -22,6 +23,17 @@ import {
   type FieldError,
 } from '../validation'
 
+/** Navigate away from auth pages once the auth listener resolves a signed-in user. */
+function useAuthRedirect() {
+  const navigate = useNavigate()
+  const status = useAuthStore((s) => s.status)
+
+  useEffect(() => {
+    if (status === 'onboarding') navigate('/onboarding', { replace: true })
+    else if (status === 'authenticated') navigate('/', { replace: true })
+  }, [status, navigate])
+}
+
 // ── Login ──────────────────────────────────────────────────────────────────────
 
 export function useLoginController() {
@@ -29,6 +41,9 @@ export function useLoginController() {
   const [fieldErrors, setFieldErrors] = useState<FieldError>({})
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Advance the router once initAuthListener resolves a signed-in user
+  useAuthRedirect()
 
   const handleEmailLogin = async (email: string, password: string) => {
     const errors = validateLoginForm(email, password)
@@ -40,7 +55,7 @@ export function useLoginController() {
     try {
       const auth = getFirebaseAuth()
       await signInWithEmail(auth, email, password)
-      // initAuthListener in App.tsx handles navigation
+      // useAuthRedirect above will fire when initAuthListener updates the status
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ''
       setServerError(getAuthErrorMessage(code))
@@ -54,9 +69,9 @@ export function useLoginController() {
     setIsLoading(true)
     try {
       await signInWithGooglePopup()
+      // useAuthRedirect fires when the popup resolves and onAuthStateChanged updates the store
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ''
-      // User closing the popup is not an error worth showing
       if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {
         setServerError(getAuthErrorMessage(code))
       }
@@ -80,9 +95,13 @@ export function useLoginController() {
 // ── Sign Up ────────────────────────────────────────────────────────────────────
 
 export function useSignUpController() {
+  const navigate = useNavigate()
   const [fieldErrors, setFieldErrors] = useState<FieldError>({})
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Google sign-up resolves directly to onboarding/home — advance automatically
+  useAuthRedirect()
 
   const handleEmailSignUp = async (
     email: string,
@@ -98,10 +117,9 @@ export function useSignUpController() {
     try {
       const auth = getFirebaseAuth()
       await signUpWithEmail(auth, email, password)
-      // initAuthListener → status='unauthenticated' (email not verified yet)
-      // App.tsx router will land on /verify-email because authStore sets status
-      // to 'unauthenticated' for unverified email accounts; the router redirects
-      // unauthenticated users to /login, so we manually navigate to verify-email.
+      // Email accounts land on status='unauthenticated' (email not yet verified).
+      // useAuthRedirect won't fire for unauthenticated, so navigate manually.
+      navigate('/verify-email', { replace: true })
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ''
       setServerError(getAuthErrorMessage(code))
@@ -115,6 +133,7 @@ export function useSignUpController() {
     setIsLoading(true)
     try {
       await signInWithGooglePopup()
+      // useAuthRedirect fires when the popup resolves
     } catch (err: unknown) {
       const code = (err as { code?: string }).code ?? ''
       if (code !== 'auth/popup-closed-by-user' && code !== 'auth/cancelled-popup-request') {

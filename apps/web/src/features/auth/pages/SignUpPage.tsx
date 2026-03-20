@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link as RouterLink, useNavigate } from 'react-router-dom'
+import { Link as RouterLink } from 'react-router-dom'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
@@ -41,7 +41,6 @@ function GoogleIcon() {
 }
 
 export default function SignUpPage() {
-  const navigate = useNavigate()
   const { fieldErrors, serverError, isLoading, handleEmailSignUp, handleGoogleSignUp } =
     useSignUpController()
 
@@ -53,13 +52,10 @@ export default function SignUpPage() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // Navigation is handled inside the controller:
+    //   email sign-up → /verify-email
+    //   Google sign-up → useAuthRedirect (onboarding or home)
     await handleEmailSignUp(email, password, confirmPassword)
-    // After account creation, Firebase sends a verification email.
-    // The auth listener sets status to 'unauthenticated' (email not yet verified),
-    // which keeps the user on auth routes. We manually navigate to verify-email.
-    if (!serverError) {
-      navigate('/verify-email', { replace: true })
-    }
   }
 
   return (

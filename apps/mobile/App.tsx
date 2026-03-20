@@ -31,13 +31,15 @@ import {
 import { initFirebase, getFirebaseApp } from '@voices/core'
 import { appTheme } from '@/styles'
 import RootNavigator from '@/navigation/RootNavigator'
-import { firebaseConfig } from '@/lib/firebaseConfig'
+import { firebaseConfig, USE_EMUlATOR, MAC_IP } from '@/lib/firebaseConfig'
 
 // ── Firebase initialisation ───────────────────────────────────────────────────
 // Runs at module evaluation time, before any React rendering.
 
-console.log(firebaseConfig)
-initFirebase(firebaseConfig)
+// console.log(firebaseConfig)
+// console.log(USE_EMUlATOR)
+// console.log(MAC_IP)
+initFirebase(firebaseConfig, USE_EMUlATOR, MAC_IP)
 
 // initializeAuth must be called exactly once. The try/catch guards against a
 // duplicate call on Expo Fast Refresh hot-reload cycles.

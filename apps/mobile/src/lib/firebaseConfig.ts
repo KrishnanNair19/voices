@@ -23,8 +23,12 @@ export const firebaseConfig: FirebaseConfig = {
   projectId:         process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID         ?? '',
   storageBucket:     process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET     ?? '',
   messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? '',
-  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID             ?? '',
+  appId:             process.env.EXPO_PUBLIC_FIREBASE_APP_ID              ?? '',
 }
 
 export const googleWebClientId =
   process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? ''
+
+
+export const USE_EMUlATOR = __DEV__ && process.env.EXPO_PUBLIC_USE_FIREBASE_EMULATOR === 'true';
+export const MAC_IP = __DEV__ && process.env.EXPO_PUBLIC_MAC_IP;

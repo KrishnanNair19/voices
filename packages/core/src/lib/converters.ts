@@ -20,6 +20,7 @@ import type {
 import type { Story } from '../types/story'
 import type { UserProfile } from '../types/user'
 import type { Playlist } from '../types/playlist'
+import type { Comment } from '../types/social'
 
 // ── UserProfile converter ─────────────────────────────────────────────────────
 
@@ -79,9 +80,15 @@ export const storyConverter: FirestoreDataConverter<Story> = {
     const data = snap.data(options)
     return {
       id: snap.id,
+      contentType: data['contentType'] ?? 'audio',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      audioUrl: data['audioUrl'] ?? '',
+      // Optional media fields — only include when present in Firestore
+      audioUrl: data['audioUrl'],
+      textContent: data['textContent'],
+      mediaUrls: data['mediaUrls'],
+      videoUrl: data['videoUrl'],
+      thumbnailUrl: data['thumbnailUrl'],
       transcriptUrl: data['transcriptUrl'],
       coverImageUrl: data['coverImageUrl'],
       location: data['location'] ?? { lat: 0, lng: 0 },
@@ -89,9 +96,12 @@ export const storyConverter: FirestoreDataConverter<Story> = {
       locationRegion: data['locationRegion'],
       tags: data['tags'] ?? [],
       authorId: data['authorId'] ?? '',
-      durationMs: data['durationMs'] ?? 0,
+      durationMs: data['durationMs'],
+      wordCount: data['wordCount'],
       isPublic: data['isPublic'] ?? false,
       playCount: data['playCount'] ?? 0,
+      likeCount: data['likeCount'] ?? 0,
+      commentCount: data['commentCount'] ?? 0,
       createdAt: data['createdAt'] ?? 0,
       updatedAt: data['updatedAt'] ?? 0,
     } satisfies Story
@@ -123,5 +133,26 @@ export const playlistConverter: FirestoreDataConverter<Playlist> = {
       isCurated: data['isCurated'] ?? false,
       createdAt: data['createdAt'] ?? 0,
     } satisfies Playlist
+  },
+}
+
+// ── Comment converter ─────────────────────────────────────────────────────────
+
+export const commentConverter: FirestoreDataConverter<Comment> = {
+  toFirestore(comment: Comment): DocumentData {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, ...rest } = comment
+    return rest
+  },
+
+  fromFirestore(snap: QueryDocumentSnapshot, options: SnapshotOptions): Comment {
+    const data = snap.data(options)
+    return {
+      id: snap.id,
+      storyId: data['storyId'] ?? '',
+      authorId: data['authorId'] ?? '',
+      text: data['text'] ?? '',
+      createdAt: data['createdAt'] ?? 0,
+    } satisfies Comment
   },
 }

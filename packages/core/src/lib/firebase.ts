@@ -13,9 +13,9 @@
  */
 
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app'
-import { getAuth, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
-import { getStorage, type FirebaseStorage } from 'firebase/storage'
+import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth'
+import { getFirestore, type Firestore, connectFirestoreEmulator } from 'firebase/firestore'
+import { getStorage, type FirebaseStorage, connectStorageEmulator } from 'firebase/storage' 
 
 export interface FirebaseConfig {
   apiKey: string
@@ -30,10 +30,35 @@ export interface FirebaseConfig {
  * Initialise Firebase. Call this once at the top of each app's entry point,
  * before any other Firebase usage. Safe to call multiple times — idempotent.
  */
-export function initFirebase(config: FirebaseConfig): FirebaseApp {
-  if (getApps().length === 0) {
-    return initializeApp(config)
+export function initFirebase(
+  config: FirebaseConfig, 
+  useEmulator: boolean = false,
+  emulatorHost: string = '127.0.0.1' // Default to localhost, but mobile will pass Mac IP
+): FirebaseApp {
+  const apps = getApps()
+  
+  if (apps.length === 0) {
+    const app = initializeApp(config)
+    
+    if (useEmulator) {
+      // 1. Firestore Emulator
+      const db = getFirestore(app)
+      connectFirestoreEmulator(db, emulatorHost, 8080)
+      
+      // 2. Auth Emulator (Requires http:// prefix)
+      const auth = getAuth(app)
+      connectAuthEmulator(auth, `http://${emulatorHost}:9099`)
+      
+      // 3. Storage Emulator
+      const storage = getStorage(app)
+      connectStorageEmulator(storage, emulatorHost, 9199)
+      
+      console.log(`🛠️ Firebase Emulators connected to ${emulatorHost}`)
+    }
+    
+    return app
   }
+  
   return getApp()
 }
 
@@ -72,3 +97,4 @@ export function getFirebaseAuth(): Auth {
 export function getFirebaseStorage(): FirebaseStorage {
   return getStorage(getFirebaseApp())
 }
+

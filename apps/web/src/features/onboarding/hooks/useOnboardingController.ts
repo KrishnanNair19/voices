@@ -1,20 +1,25 @@
 /**
- * Controller for the Onboarding wizard screens.
- * Updated to return boolean status to ensure navigation logic in components 
- * is not blocked by stale React state.
+ * Onboarding wizard controller for the web app.
+ * Identical business logic to apps/mobile's useOnboardingController —
+ * kept in the app layer (not core) because it has no React Native deps.
  */
 
 import { useState, useRef, useCallback } from 'react'
 import { doc, updateDoc, writeBatch, getDoc, serverTimestamp } from 'firebase/firestore'
 import { getDb, useAuthStore, useOnboardingStore } from '@voices/core'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
 
-const DB_TIMEOUT = 5000;
+const DB_TIMEOUT = 5_000
 
-// ── Controller ────────────────────────────────────────────────────────────────
+function withTimeout<T>(promise: Promise<T>): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT')), DB_TIMEOUT),
+    ),
+  ])
+}
 
 export function useOnboardingController() {
   const user = useAuthStore((s) => s.user)
@@ -25,41 +30,33 @@ export function useOnboardingController() {
 
   const uid = user?.uid ?? ''
 
-  // Helper for racing Firestore calls against a timer
-  const withTimeout = (promise: Promise<any>) => {
-    const timeout = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("TIMEOUT")), DB_TIMEOUT)
-    );
-    return Promise.race([promise, timeout]);
-  };
-
-  // ── Step 1: Display Name ────────────────────────────────────────────────────
+  // ── Step 1: Display Name ──────────────────────────────────────────────────
 
   const submitDisplayName = async (displayName: string): Promise<boolean> => {
-    setIsSubmitting(true);
-    setError(null);
+    setIsSubmitting(true)
+    setError(null)
     try {
-      const db = getDb();
+      const db = getDb()
       await withTimeout(
         updateDoc(doc(db, 'users', uid), {
           displayName: displayName.trim(),
           onboardingStep: 1,
           updatedAt: serverTimestamp(),
-        })
-      );
-      store.updateDraft({ displayName: displayName.trim() });
-      store.nextStep();
-      return true;
-    } catch (e: any) {
-      console.error("SubmitDisplayName Error:", e);
-      setError(e.message === "TIMEOUT" ? "Connection timed out." : "Failed to save name.");
-      return false;
+        }),
+      )
+      store.updateDraft({ displayName: displayName.trim() })
+      store.nextStep()
+      return true
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : ''
+      setError(msg === 'TIMEOUT' ? 'Connection timed out.' : 'Failed to save name.')
+      return false
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false)
     }
-  };
+  }
 
-  // ── Step 2: Username ────────────────────────────────────────────────────────
+  // ── Step 2: Username ──────────────────────────────────────────────────────
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -68,7 +65,7 @@ export function useOnboardingController() {
 
     const lower = username.toLowerCase()
     if (!lower || lower.length < 3 || !/^[a-z0-9_]+$/.test(lower)) {
-      setUsernameStatus('idle')
+      setUsernameStatus(lower.length > 0 ? 'invalid' : 'idle')
       return
     }
 
@@ -78,8 +75,7 @@ export function useOnboardingController() {
         const db = getDb()
         const snap = await getDoc(doc(db, 'usernames', lower))
         setUsernameStatus(snap.exists() ? 'taken' : 'available')
-      } catch (e) {
-        console.error("CheckUsername Error:", e);
+      } catch {
         setUsernameStatus('idle')
       }
     }, 400)
@@ -92,29 +88,25 @@ export function useOnboardingController() {
       const lower = username.toLowerCase()
       const db = getDb()
       const batch = writeBatch(db)
-
       batch.update(doc(db, 'users', uid), {
         username: lower,
         onboardingStep: 2,
         updatedAt: serverTimestamp(),
       })
       batch.set(doc(db, 'usernames', lower), { uid })
-
-      await withTimeout(batch.commit());
-      
+      await withTimeout(batch.commit())
       store.updateDraft({ username: lower })
       store.nextStep()
-      return true;
-    } catch (e: any) {
-      console.error("SubmitUsername Error:", e);
-      setError("This username might already be taken.");
-      return false;
+      return true
+    } catch {
+      setError('This username might already be taken.')
+      return false
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // ── Step 3: Profile (bio + avatar) ─────────────────────────────────────────
+  // ── Step 3: Profile (bio + avatar URL) ───────────────────────────────────
 
   const submitProfile = async (bio: string, profileImageUrl: string | null): Promise<boolean> => {
     setIsSubmitting(true)
@@ -130,21 +122,41 @@ export function useOnboardingController() {
           }),
           onboardingStep: 3,
           updatedAt: serverTimestamp(),
-        })
-      );
+        }),
+      )
       store.updateDraft({ bio: bio.trim(), profileImageUrl })
       store.nextStep()
-      return true;
-    } catch (e: any) {
-      console.error("SubmitProfile Error:", e);
-      setError("Failed to save profile info.");
-      return false;
+      return true
+    } catch {
+      setError('Failed to save profile info.')
+      return false
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // ── Step 4: Interests + completion ─────────────────────────────────────────
+  const skipProfile = async (): Promise<boolean> => {
+    setIsSubmitting(true)
+    setError(null)
+    try {
+      const db = getDb()
+      await withTimeout(
+        updateDoc(doc(db, 'users', uid), {
+          onboardingStep: 3,
+          updatedAt: serverTimestamp(),
+        }),
+      )
+      store.nextStep()
+      return true
+    } catch {
+      setError('Failed to skip.')
+      return false
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // ── Step 4: Interests + completion ───────────────────────────────────────
 
   const finishOnboarding = async (preferredTags: string[]): Promise<boolean> => {
     setIsSubmitting(true)
@@ -157,39 +169,14 @@ export function useOnboardingController() {
           onboardingCompleted: true,
           onboardingStep: 4,
           updatedAt: serverTimestamp(),
-        })
-      );
+        }),
+      )
       store.updateDraft({ preferredTags })
       useAuthStore.getState()._setStatus('authenticated')
-      return true;
-    } catch (e: any) {
-      console.error("FinishOnboarding Error:", e);
-      setError("Failed to finalize onboarding.");
-      return false;
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // ── Skip handlers ───────────────────────────────────────────────────────────
-
-  const skipProfile = async (): Promise<boolean> => {
-    setIsSubmitting(true)
-    setError(null)
-    try {
-      const db = getDb()
-      await withTimeout(
-        updateDoc(doc(db, 'users', uid), {
-          onboardingStep: 3,
-          updatedAt: serverTimestamp(),
-        })
-      );
-      store.nextStep()
-      return true;
-    } catch (e) {
-      console.error("SkipProfile Error:", e);
-      setError('Failed to skip.');
-      return false;
+      return true
+    } catch {
+      setError('Failed to finalize onboarding.')
+      return false
     } finally {
       setIsSubmitting(false)
     }

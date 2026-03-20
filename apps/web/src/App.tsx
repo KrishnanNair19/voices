@@ -1,29 +1,19 @@
-import { tokens } from '@voices/core'
+import { useEffect } from 'react'
+import { RouterProvider } from 'react-router-dom'
+import { Providers } from '@/app/providers'
+import { router } from '@/app/router'
+import { initAuthListener } from '@voices/core'
 
-function App() {
+export default function App() {
+  // Subscribe to Firebase Auth state — updates useAuthStore globally
+  useEffect(() => {
+    const unsubscribe = initAuthListener()
+    return unsubscribe
+  }, [])
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: tokens.color.bg,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <h1
-        style={{
-          color: tokens.color.primary,
-          fontFamily: tokens.fontFamily.sans,
-          fontSize: tokens.fontSize.display,
-          fontWeight: tokens.fontWeight.bold,
-          margin: 0,
-        }}
-      >
-        Voices
-      </h1>
-    </div>
+    <Providers>
+      <RouterProvider router={router} />
+    </Providers>
   )
 }
-
-export default App

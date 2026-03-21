@@ -1,5 +1,8 @@
 /* ── Voices Web — Global CSS ────────────────────────────────────────────────── */
 
+/* Leaflet map styles */
+@import 'leaflet/dist/leaflet.css';
+
 /* Inter Variable font — loaded via @fontsource/inter */
 @import '@fontsource/inter/400.css';
 @import '@fontsource/inter/500.css';

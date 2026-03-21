@@ -19,8 +19,11 @@ import SignUpPage from '@/features/auth/pages/SignUpPage'
 import EmailVerificationPage from '@/features/auth/pages/EmailVerificationPage'
 import OnboardingPage from '@/features/onboarding/pages/OnboardingPage'
 
-// ── Lazy feature pages (not yet implemented — stubs until Phase 3.2+) ─────────
+// ── Lazy feature pages ────────────────────────────────────────────────────────
 const PlaceholderPage = lazy(() => import('@/shared/pages/PlaceholderPage'))
+const CreateStoryPage = lazy(() => import('@/features/create/pages/CreateStoryPage'))
+const ExplorePage = lazy(() => import('@/features/explore/pages/ExplorePage'))
+const StoryListenPage = lazy(() => import('@/features/story/pages/StoryListenPage'))
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +57,7 @@ export const router = createBrowserRouter([
         index: true,
         element: (
           <Suspense fallback={<PageSkeleton />}>
-            <PlaceholderPage title="Explore" subtitle="Map & story discovery — coming in Phase 3.2" />
+            <ExplorePage />
           </Suspense>
         ),
       },
@@ -62,7 +65,7 @@ export const router = createBrowserRouter([
         path: 'create',
         element: (
           <Suspense fallback={<PageSkeleton />}>
-            <PlaceholderPage title="Create" subtitle="Story creation wizard — coming in Phase 3.3" />
+            <CreateStoryPage />
           </Suspense>
         ),
       },
@@ -86,7 +89,7 @@ export const router = createBrowserRouter([
         path: 'story/:id',
         element: (
           <Suspense fallback={<PageSkeleton />}>
-            <PlaceholderPage title="Story" subtitle="Story listen page — coming in Phase 3.2" />
+            <StoryListenPage />
           </Suspense>
         ),
       },

@@ -57,6 +57,7 @@ export type { UploadStep } from './stores/uploadStore'
 // ── TanStack Query hooks — user ───────────────────────────────────────────────
 export {
   useUserProfile,
+  useUserProfileByUsername,
   useUpdateUserProfile,
   userProfileKeys,
 } from './hooks/useUserProfile'

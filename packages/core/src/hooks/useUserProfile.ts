@@ -13,8 +13,13 @@ import {
   type UseMutationResult,
 } from '@tanstack/react-query'
 import {
+  collection,
   doc,
   getDoc,
+  getDocs,
+  query,
+  where,
+  limit,
   updateDoc,
   serverTimestamp,
 } from 'firebase/firestore'
@@ -51,6 +56,39 @@ export function useUserProfile(
       return snap.exists() ? snap.data() : null
     },
     enabled: !!uid,
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
+// ── Lookup by username ────────────────────────────────────────────────────────
+
+/**
+ * Fetch a user profile by their unique username.
+ * Performs a Firestore collection query — `where('username', '==', username)`.
+ * Returns the first matching profile or null if none found.
+ * Disabled when username is null.
+ *
+ * Cache: 5-minute stale time.
+ */
+export function useUserProfileByUsername(
+  username: string | null,
+): UseQueryResult<UserProfile | null> {
+  return useQuery({
+    queryKey: ['userProfile', 'byUsername', username] as const,
+    queryFn: async () => {
+      if (!username) return null
+      const db = getDb()
+      const snap = await getDocs(
+        query(
+          collection(db, 'users').withConverter(userProfileConverter),
+          where('username', '==', username),
+          limit(1),
+        ),
+      )
+      const first = snap.docs[0]
+      return first ? first.data() : null
+    },
+    enabled: username !== null,
     staleTime: 1000 * 60 * 5,
   })
 }

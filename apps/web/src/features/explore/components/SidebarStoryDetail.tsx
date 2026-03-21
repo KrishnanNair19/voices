@@ -7,6 +7,7 @@
 
 import { useEffect, useRef } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
+import StoryActionMenu from '@/shared/components/StoryActionMenu'
 import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -91,15 +92,25 @@ export default function SidebarStoryDetail({ storyId, onBack }: Props) {
         >
           Back
         </Button>
-        <IconButton
-          component={RouterLink}
-          to={`/story/${storyId}`}
-          size="small"
-          sx={{ color: 'text.disabled' }}
-          title="Open full page"
-        >
-          <OpenInNewIcon fontSize="small" />
-        </IconButton>
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center' }}>
+          {story && (
+            <StoryActionMenu
+              storyId={storyId}
+              authorId={story.authorId}
+              authorUsername={author?.username}
+              iconSize="small"
+            />
+          )}
+          <IconButton
+            component={RouterLink}
+            to={`/story/${storyId}`}
+            size="small"
+            sx={{ color: 'text.disabled' }}
+            title="Open full page"
+          >
+            <OpenInNewIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </Box>
 
       <Box sx={{ px: 2, pb: 3 }}>

@@ -20,10 +20,12 @@ import EmailVerificationPage from '@/features/auth/pages/EmailVerificationPage'
 import OnboardingPage from '@/features/onboarding/pages/OnboardingPage'
 
 // ── Lazy feature pages ────────────────────────────────────────────────────────
-const PlaceholderPage = lazy(() => import('@/shared/pages/PlaceholderPage'))
 const CreateStoryPage = lazy(() => import('@/features/create/pages/CreateStoryPage'))
 const ExplorePage = lazy(() => import('@/features/explore/pages/ExplorePage'))
 const StoryListenPage = lazy(() => import('@/features/story/pages/StoryListenPage'))
+const PlaylistsPage = lazy(() => import('@/features/playlists/pages/PlaylistsPage'))
+const PlaylistDetailPage = lazy(() => import('@/features/playlists/pages/PlaylistDetailPage'))
+const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'))
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
@@ -73,7 +75,15 @@ export const router = createBrowserRouter([
         path: 'playlists',
         element: (
           <Suspense fallback={<PageSkeleton />}>
-            <PlaceholderPage title="Playlists" subtitle="Playlist management — coming in Phase 3.4" />
+            <PlaylistsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'playlists/:id',
+        element: (
+          <Suspense fallback={<PageSkeleton />}>
+            <PlaylistDetailPage />
           </Suspense>
         ),
       },
@@ -81,7 +91,7 @@ export const router = createBrowserRouter([
         path: 'profile/:username',
         element: (
           <Suspense fallback={<PageSkeleton />}>
-            <PlaceholderPage title="Profile" subtitle="User profiles — coming in Phase 3.5" />
+            <ProfilePage />
           </Suspense>
         ),
       },

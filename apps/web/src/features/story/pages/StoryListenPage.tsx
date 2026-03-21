@@ -11,6 +11,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useParams, Link as RouterLink } from 'react-router-dom'
+import StoryActionMenu from '@/shared/components/StoryActionMenu'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
@@ -74,16 +75,23 @@ export default function StoryListenPage() {
 
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto', px: { xs: 2, sm: 3 }, py: 5 }}>
-      {/* Back */}
-      <Button
-        component={RouterLink}
-        to="/"
-        startIcon={<ArrowBackIcon />}
-        size="small"
-        sx={{ color: 'text.secondary', mb: 3, pl: 0 }}
-      >
-        Explore
-      </Button>
+      {/* Back + Actions row */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Button
+          component={RouterLink}
+          to="/"
+          startIcon={<ArrowBackIcon />}
+          size="small"
+          sx={{ color: 'text.secondary', pl: 0 }}
+        >
+          Explore
+        </Button>
+        <StoryActionMenu
+          storyId={story.id}
+          authorId={story.authorId}
+          authorUsername={author?.username}
+        />
+      </Box>
 
       {/* Header */}
       <Typography variant="h4" fontWeight={700} mb={1} lineHeight={1.2}>

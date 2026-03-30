@@ -62,11 +62,19 @@ export async function routeMessage(req: Request, res: Response): Promise<void> {
     // 3. Load session
     const session = await getSession(phoneNumber)
 
-    // 4. No active session — guide the user
+    // 4. No active session — send full instructions
     if (!session) {
       twimlReply(
         res,
-        'Hi! Send "START STORY" to begin recording a story for Voices.',
+        `👋 Welcome to *Voices* — share stories from wherever you are.\n\n` +
+          `Here's how it works:\n\n` +
+          `1️⃣ *START STORY* — begins a new story session\n` +
+          `2️⃣ Send your content — text messages, a voice note, or photos/video (text and audio can't be mixed)\n` +
+          `3️⃣ *FINISH* — when you're done adding content\n` +
+          `4️⃣ Follow the prompts to add a title, location, and tags — reply *SKIP* to any you'd like to omit\n` +
+          `5️⃣ Choose public or private, and your story is published instantly\n\n` +
+          `You'll receive a link to your story when it goes live. 🎙\n\n` +
+          `Ready? Send *START STORY* to begin.`,
       )
       return
     }

@@ -22,9 +22,10 @@
 1. [Prerequisites](#1-prerequisites)
 2. [One-time setup](#2-one-time-setup)
 3. [Daily local development](#3-daily-local-development)
-4. [Deploying to Vercel (Expo Web)](#4-deploying-to-vercel-expo-web)
-5. [Cache clearing and dependency reinstall](#5-cache-clearing-and-dependency-reinstall)
-6. [Troubleshooting](#6-troubleshooting)
+4. [Firebase emulator](#4-firebase-emulator)
+5. [Deploying to Vercel (Expo Web)](#5-deploying-to-vercel-expo-web)
+6. [Cache clearing and dependency reinstall](#6-cache-clearing-and-dependency-reinstall)
+7. [Troubleshooting](#7-troubleshooting)
 
 ---
 
@@ -104,7 +105,16 @@ To pick a specific simulator device:
 npx expo run:ios --device   # interactive device picker
 ```
 
-**Option B — Web in browser (quick checks)**
+**Option B — Vite web app (`apps/web`)**
+
+```bash
+# from monorepo root:
+pnpm dev:web
+```
+
+Opens at `http://localhost:5173`. This is the standalone Vite/React web app — not the mobile app running in a browser.
+
+**Option C — Mobile app in browser (quick layout checks)**
 
 ```bash
 cd apps/mobile
@@ -131,11 +141,99 @@ Re-run `npx expo run:ios` any time you:
 
 ---
 
-## 4. Deploying to Vercel (Expo Web)
+## 4. Firebase emulator
+
+The Firebase emulator suite lets you develop and test against local Firebase services (Auth, Firestore, Storage) without touching the production project `voices-9a030`.
+
+### Prerequisites
+
+```bash
+npm install -g firebase-tools   # one-time global install
+firebase login                  # authenticate once
+```
+
+Verify installation:
+```bash
+firebase --version   # should be 13+
+```
+
+### Starting the emulator
+
+Run from the **monorepo root** (where `firebase.json` lives):
+
+```bash
+firebase emulators:start
+```
+
+This starts all configured emulators:
+
+| Emulator | Port | URL |
+|---|---|---|
+| Auth | 9099 | `http://localhost:9099` |
+| Firestore | 8080 | `http://localhost:8080` |
+| Storage | 9199 | `http://localhost:9199` |
+| Emulator UI | 4000 | `http://localhost:4000` |
+
+Open `http://localhost:4000` to browse the Emulator UI — view and edit Firestore documents, inspect Auth users, and browse Storage files.
+
+### Connecting your app to the emulator
+
+In your Firebase initialisation code, add emulator connections after `initializeApp()`:
+
+```ts
+import { connectAuthEmulator, getAuth } from 'firebase/auth'
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore'
+import { connectStorageEmulator, getStorage } from 'firebase/storage'
+
+const auth = getAuth()
+const db = getFirestore()
+const storage = getStorage()
+
+if (process.env.NODE_ENV === 'development') {
+  connectAuthEmulator(auth, 'http://localhost:9099')
+  connectFirestoreEmulator(db, 'localhost', 8080)
+  connectStorageEmulator(storage, 'localhost', 9199)
+}
+```
+
+### Running emulator + web app together
+
+Open two terminals:
+
+```bash
+# Terminal 1 — monorepo root
+firebase emulators:start
+
+# Terminal 2 — monorepo root
+pnpm dev:web
+```
+
+### Seeding data
+
+To pre-populate Firestore with test data, export/import emulator data:
+
+```bash
+# Export current emulator state (while emulator is running)
+firebase emulators:export ./emulator-data
+
+# Start emulator with saved data
+firebase emulators:start --import=./emulator-data
+```
+
+Add `emulator-data/` to `.gitignore` if you don't want to commit seed data.
+
+### Emulator vs production
+
+The emulator runs in `singleProjectMode` (see `firebase.json`), so it uses the project alias `voices-9a030` locally but writes only to local state — nothing touches production Firestore or Auth. To confirm you're hitting the emulator, check the Emulator UI at `http://localhost:4000`.
+
+---
+
+## 5. Deploying to Vercel (Expo Web)
+
 
 The mobile app is deployed to the web using `expo export --platform web`, producing a static site that Vercel hosts. Recruiters get a public URL — no installs needed.
 
-### 4a. Preview locally before deploying
+### 5a. Preview locally before deploying
 
 ```bash
 cd apps/mobile
@@ -143,7 +241,7 @@ npx expo export --platform web   # outputs to apps/mobile/dist/
 npx serve dist                   # serve locally to verify
 ```
 
-### 4b. First-time Vercel setup
+### 5b. First-time Vercel setup
 
 1. Push the repo to GitHub
 2. Go to [vercel.com](https://vercel.com) → New Project → import the repo
@@ -160,17 +258,17 @@ npx serve dist                   # serve locally to verify
 4. Add any environment variables (Firebase keys, etc.) in the Vercel dashboard
 5. Click Deploy
 
-### 4c. Subsequent deploys
+### 5c. Subsequent deploys
 
 Push to `main` — Vercel redeploys automatically on every push.
 
-### 4d. What recruiters see
+### 5d. What recruiters see
 
 The app renders at mobile width, centered on desktop, full-width on mobile. This looks intentional — it communicates "this is a mobile app" without needing explanation.
 
 ---
 
-## 5. Cache clearing and dependency reinstall
+## 6. Cache clearing and dependency reinstall
 
 ### Full reset — start from scratch
 
@@ -245,7 +343,7 @@ pnpm build
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 | Error | Cause | Fix |
 |---|---|---|

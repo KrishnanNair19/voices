@@ -7,6 +7,7 @@ node_modules/
 # Build outputs
 dist/
 build/
+lib/
 .expo/
 
 # Environment variables — all variants, in any subdirectory
@@ -56,3 +57,8 @@ GoogleService-Info.plist
 google-services.json
 functions/.env
 functions/.env.local
+
+
+.firebase*
+firebase-debug.log
+firestore-debug.log

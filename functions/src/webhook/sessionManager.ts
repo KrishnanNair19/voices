@@ -17,9 +17,10 @@ export async function getSession(phoneNumber: string): Promise<WhatsAppSession |
 
 // ── Create ───────────────────────────────────────────────────────────────────
 
+/** Creates a story-collection session for an already-authenticated user. */
 export async function createSession(
   phoneNumber: string,
-  userId: string | null,
+  userId: string,
 ): Promise<WhatsAppSession> {
   const now = Timestamp.now()
   const session: WhatsAppSession = {
@@ -32,9 +33,51 @@ export async function createSession(
     videoUrl: null,
     draftTitle: null,
     draftLocation: null,
+    draftLocationLat: 0,
+    draftLocationLng: 0,
+    pendingLocationName: null,
+    pendingLocationLat: null,
+    pendingLocationLng: null,
     draftTags: [],
     isPublic: true,
+    pendingAuthEmail: null,
+    authOtpCode: null,
+    authOtpExpiresAt: null,
+    authOtpAttempts: 0,
     userId,
+    createdAt: now,
+    lastActivityAt: now,
+    reminderSentAt: null,
+  }
+  await db().collection(SESSIONS_COLLECTION).doc(phoneNumber).set(session)
+  return session
+}
+
+/** Creates a sign-in session for an unknown (unlinked) phone number. */
+export async function createAuthSession(phoneNumber: string): Promise<WhatsAppSession> {
+  const now = Timestamp.now()
+  const session: WhatsAppSession = {
+    phoneNumber,
+    state: 'awaiting_auth_email',
+    contentType: null,
+    textContent: '',
+    audioUrl: null,
+    mediaUrls: [],
+    videoUrl: null,
+    draftTitle: null,
+    draftLocation: null,
+    draftLocationLat: 0,
+    draftLocationLng: 0,
+    pendingLocationName: null,
+    pendingLocationLat: null,
+    pendingLocationLng: null,
+    draftTags: [],
+    isPublic: true,
+    pendingAuthEmail: null,
+    authOtpCode: null,
+    authOtpExpiresAt: null,
+    authOtpAttempts: 0,
+    userId: null,
     createdAt: now,
     lastActivityAt: now,
     reminderSentAt: null,
@@ -72,7 +115,6 @@ export async function advanceState(
 
 /** Append a text chunk to an existing session (newline-delimited). */
 export async function appendText(phoneNumber: string, chunk: string): Promise<void> {
-  // Use a transaction to safely read-modify-write the string field.
   await db().runTransaction(async (tx) => {
     const ref = db().collection(SESSIONS_COLLECTION).doc(phoneNumber)
     const snap = await tx.get(ref)
@@ -103,11 +145,11 @@ export async function deleteSession(phoneNumber: string): Promise<void> {
   await db().collection(SESSIONS_COLLECTION).doc(phoneNumber).delete()
 }
 
-// ── Lookup user by WhatsApp phone ─────────────────────────────────────────────
+// ── User ↔ phone linking ──────────────────────────────────────────────────────
 
 /**
  * Finds a Voices user whose `whatsappPhone` field matches the given E.164 number.
- * Returns the uid string or null if no match.
+ * Returns the uid or null if no match.
  */
 export async function findUserByPhone(phoneNumber: string): Promise<string | null> {
   const snap = await db()
@@ -117,4 +159,46 @@ export async function findUserByPhone(phoneNumber: string): Promise<string | nul
     .get()
   if (snap.empty) return null
   return snap.docs[0]!.id
+}
+
+/**
+ * Finds a Voices user by their account email address.
+ * Returns the uid or null if no match.
+ */
+export async function findUserByEmail(
+  email: string,
+): Promise<{ uid: string; displayName: string } | null> {
+  const snap = await db()
+    .collection('users')
+    .where('email', '==', email)
+    .limit(1)
+    .get()
+  if (snap.empty) return null
+  const data = snap.docs[0]!.data()
+  return {
+    uid: snap.docs[0]!.id,
+    displayName: (data['displayName'] as string) || 'there',
+  }
+}
+
+/**
+ * Writes the user's WhatsApp phone number to their Firestore profile.
+ * This is what `findUserByPhone` queries on subsequent messages.
+ */
+export async function linkPhoneToUser(
+  userId: string,
+  phoneNumber: string,
+): Promise<void> {
+  await db().collection('users').doc(userId).update({ whatsappPhone: phoneNumber })
+}
+
+/**
+ * Removes the WhatsApp phone link from a user's profile.
+ * Called on SIGN OUT.
+ */
+export async function unlinkPhoneFromUser(userId: string): Promise<void> {
+  await db()
+    .collection('users')
+    .doc(userId)
+    .update({ whatsappPhone: FieldValue.delete() })
 }

@@ -3,18 +3,27 @@ import type { Timestamp } from 'firebase-admin/firestore'
 // ── Session state machine ────────────────────────────────────────────────────
 
 /**
- * Lifecycle states for a WhatsApp story-creation session.
+ * All possible states for a WhatsApp session.
  *
- * collecting       — user is actively sending content (text / audio / images)
- * awaiting_title   — FINISH received; prompting for a story title
- * awaiting_location — title collected (or skipped); prompting for location
- * awaiting_tags    — location collected (or skipped); prompting for tags
- * awaiting_visibility — tags collected (or skipped); prompting public/private
+ * Auth states (before a story can be created):
+ *   awaiting_auth_email   — no linked account; waiting for user to send their email
+ *   awaiting_auth_otp     — email found; waiting for user to confirm with OTP code
+ *
+ * Story states:
+ *   collecting            — receiving content (text / audio / images / video)
+ *   awaiting_title        — FINISH received; prompting for story title
+ *   awaiting_location     — title collected (or skipped); prompting for location
+ *   awaiting_location_confirm — geocoded candidate shown; waiting for YES / NO / new query
+ *   awaiting_tags         — location settled; prompting for tags
+ *   awaiting_visibility   — tags settled; prompting public vs private
  */
 export type SessionState =
+  | 'awaiting_auth_email'
+  | 'awaiting_auth_otp'
   | 'collecting'
   | 'awaiting_title'
   | 'awaiting_location'
+  | 'awaiting_location_confirm'
   | 'awaiting_tags'
   | 'awaiting_visibility'
 
@@ -51,13 +60,40 @@ export interface WhatsAppSession {
   /** Firebase Storage URL for a video attachment. */
   videoUrl: string | null
 
-  // Metadata collected during the post-FINISH flow
+  // ── Metadata collected during the post-FINISH flow ──────────────────────
+
   draftTitle: string | null
+
+  /** Confirmed location name (formatted_address from geocoding, or raw text). */
   draftLocation: string | null
+  /** Confirmed latitude — 0 if unknown. */
+  draftLocationLat: number
+  /** Confirmed longitude — 0 if unknown. */
+  draftLocationLng: number
+
   draftTags: string[]
   isPublic: boolean
 
-  /** Voices user ID linked to this phone number; null if not yet linked. */
+  // ── Location candidate (awaiting_location_confirm state) ────────────────
+
+  /** Geocoded candidate awaiting user confirmation. */
+  pendingLocationName: string | null
+  pendingLocationLat: number | null
+  pendingLocationLng: number | null
+
+  // ── Auth (awaiting_auth_email / awaiting_auth_otp states) ───────────────
+
+  /** Email entered by user during sign-in; cleared after auth completes. */
+  pendingAuthEmail: string | null
+  /** 6-digit OTP sent to the user; cleared after successful verification. */
+  authOtpCode: string | null
+  authOtpExpiresAt: Timestamp | null
+  /** Number of failed OTP attempts this session. */
+  authOtpAttempts: number
+
+  // ── Identity ─────────────────────────────────────────────────────────────
+
+  /** Voices user ID once authenticated; null until then. */
   userId: string | null
 
   createdAt: Timestamp

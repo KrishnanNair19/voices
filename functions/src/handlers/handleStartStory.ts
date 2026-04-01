@@ -1,44 +1,66 @@
 import type { Response } from 'express'
 import { twimlReply } from '../webhook/twilioHelper'
 import {
-  getSession,
   createSession,
+  createAuthSession,
   deleteSession,
-  findUserByPhone,
 } from '../webhook/sessionManager'
+import type { WhatsAppSession } from '../types'
 
 /**
  * Handles the "START STORY" command.
  *
- * - If a session already exists, it is silently discarded so the user can
- *   start fresh without having to explicitly cancel.
- * - Looks up the Voices user ID linked to this phone number (if any).
+ * Requires the phone number to be linked to a Voices account.
+ * If not linked, starts the auth flow instead of creating a story session.
+ *
+ * @param existingSession  The current session, if any (may be auth or story state).
+ * @param userId           The Voices uid linked to this phone, or null if unlinked.
  */
 export async function handleStartStory(
   phoneNumber: string,
+  existingSession: WhatsAppSession | null,
+  userId: string | null,
   res: Response,
 ): Promise<void> {
-  // Discard any in-progress session
-  const existing = await getSession(phoneNumber)
-  if (existing) {
+  // Block if user is mid-auth — they need to finish signing in first
+  if (
+    existingSession?.state === 'awaiting_auth_email' ||
+    existingSession?.state === 'awaiting_auth_otp'
+  ) {
+    twimlReply(
+      res,
+      `Please finish signing in first.\n\n` +
+        (existingSession.state === 'awaiting_auth_email'
+          ? `Send your Voices account email address.`
+          : `Send the sign-in code that was just sent to you.`),
+    )
+    return
+  }
+
+  // Discard any in-progress story session
+  if (existingSession) {
     await deleteSession(phoneNumber)
   }
 
-  // Attempt to link to a Voices account
-  const userId = await findUserByPhone(phoneNumber)
+  // Not linked — start auth flow
+  if (!userId) {
+    await createAuthSession(phoneNumber)
+    twimlReply(
+      res,
+      `👋 To create stories you need to sign in to your Voices account.\n\n` +
+        `Please send your Voices account email address.`,
+    )
+    return
+  }
 
+  // Linked — create story session
   await createSession(phoneNumber, userId)
-
-  const accountNotice = userId
-    ? ''
-    : '\n\n_Tip: add your phone number to your Voices profile to link stories to your account._'
 
   twimlReply(
     res,
     `🎙 Story started! Send your content — text or a voice message.\n\n` +
       `You can also attach photos or video at any time.\n\n` +
       `⚠️ You can use text OR audio, but not both in the same story.\n\n` +
-      `Send FINISH when you're ready to publish.` +
-      accountNotice,
+      `Send FINISH when you're ready to publish.`,
   )
 }

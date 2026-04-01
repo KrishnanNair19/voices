@@ -1,8 +1,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore'
 import type { WhatsAppSession } from '../types'
 
-// Mirror the StoryContentType from @voices/core (can't import it here — no
-// dependency on the client package from functions)
+// Mirror the StoryContentType from @voices/core (no dependency on client package)
 type StoryContentType = 'audio' | 'text' | 'image' | 'video' | 'mixed'
 
 // ── Content-type resolver ─────────────────────────────────────────────────────
@@ -19,7 +18,6 @@ function resolveContentType(session: WhatsAppSession): StoryContentType {
   if (hasText) return 'text'
   if (hasVideo) return 'video'
   if (hasImage) return 'image'
-  // Fallback — should never reach here after handleFinish guard
   return 'text'
 }
 
@@ -56,15 +54,12 @@ interface StoryDocument {
 function buildStoryDocument(id: string, session: WhatsAppSession): StoryDocument {
   const contentType = resolveContentType(session)
 
-  // Estimate word count for text stories
   const wordCount =
     session.textContent.trim().length > 0
       ? session.textContent.trim().split(/\s+/).length
       : null
 
-  // Use the first uploaded image as cover if available
-  const coverImageUrl =
-    session.mediaUrls.length > 0 ? (session.mediaUrls[0] ?? null) : null
+  const coverImageUrl = session.mediaUrls.length > 0 ? (session.mediaUrls[0] ?? null) : null
 
   return {
     id,
@@ -78,11 +73,15 @@ function buildStoryDocument(id: string, session: WhatsAppSession): StoryDocument
     thumbnailUrl: null,
     transcriptUrl: null,
     coverImageUrl,
-    location: { lat: 0, lng: 0 }, // coordinates unknown from WhatsApp text
+    // Use geocoded coordinates if available, otherwise default to 0,0
+    location: {
+      lat: session.draftLocationLat,
+      lng: session.draftLocationLng,
+    },
     locationName: session.draftLocation,
     locationRegion: deriveRegion(session.draftLocation),
     tags: session.draftTags,
-    authorId: session.userId ?? `whatsapp_${session.phoneNumber.replace(/\+/g, '')}`,
+    authorId: session.userId!, // guaranteed non-null; router enforces auth before publish
     durationMs: null,
     wordCount,
     isPublic: session.isPublic,
@@ -95,45 +94,36 @@ function buildStoryDocument(id: string, session: WhatsAppSession): StoryDocument
   }
 }
 
-/**
- * Extracts a rough region from a free-text location string.
- * e.g. "Hanoi, Vietnam" → "Vietnam"
- * Returns null when nothing useful can be inferred.
- */
 function deriveRegion(locationName: string | null): string | null {
   if (!locationName) return null
   const parts = locationName.split(',').map((p) => p.trim())
   return parts.length > 1 ? (parts[parts.length - 1] ?? null) : (parts[0] ?? null)
 }
 
-// ── Increment user story count ────────────────────────────────────────────────
-
-async function incrementUserStoryCount(userId: string): Promise<void> {
-  const db = getFirestore()
-  // Only increment if this is a real Voices user (not a fallback phone ID)
-  if (userId.startsWith('whatsapp_')) return
-  await db
-    .collection('users')
-    .doc(userId)
-    .update({ storyCount: FieldValue.increment(1) })
-}
-
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
  * Creates the Firestore story document and returns the new story ID.
+ * Throws if the session has no linked userId (should never reach here
+ * after auth is enforced in the router, but guards against bugs).
  */
 export async function publishStory(session: WhatsAppSession): Promise<string> {
+  if (!session.userId) {
+    throw new Error('Cannot publish story: session has no authenticated userId')
+  }
+
   const db = getFirestore()
   const storyRef = db.collection('stories').doc()
   const doc = buildStoryDocument(storyRef.id, session)
 
   await storyRef.set(doc)
 
-  if (session.userId) {
-    await incrementUserStoryCount(session.userId)
-  }
+  // Increment the user's story count
+  await db
+    .collection('users')
+    .doc(session.userId)
+    .update({ storyCount: FieldValue.increment(1) })
 
-  console.info(`[storyPublisher] Published story ${storyRef.id} for ${session.phoneNumber}`)
+  console.info(`[storyPublisher] Published story ${storyRef.id} for user ${session.userId}`)
   return storyRef.id
 }

@@ -3,13 +3,17 @@
  *
  * Firebase Functions v2 loads .env files from the functions/ directory.
  * Sensitive values (SID, token) should be set via Firebase Secret Manager
- * in production — see deploy instructions in README.
+ * in production — see TEXT_SERVICE.md for deploy instructions.
  */
 
 function required(key: string): string {
   const val = process.env[key]
   if (!val) throw new Error(`Missing required environment variable: ${key}`)
   return val
+}
+
+function optional(key: string): string | null {
+  return process.env[key] ?? null
 }
 
 export const config = {
@@ -20,7 +24,15 @@ export const config = {
     whatsappNumber: required('TWILIO_WHATSAPP_NUMBER'),
   },
   firebase: {
-    storageBucket: required('FIREBASE_STORAGE_BUCKET'),
+    storageBucket: required('STORAGE_BUCKET'),
+  },
+  google: {
+    /**
+     * Google Maps Geocoding API key.
+     * Optional — if absent, location is stored as free text without coordinates.
+     * Get a key at: https://console.cloud.google.com → APIs → Geocoding API
+     */
+    mapsApiKey: optional('GOOGLE_MAPS_API_KEY'),
   },
   app: {
     webUrl: process.env['VOICES_WEB_URL'] ?? 'https://voices.app',
@@ -32,5 +44,9 @@ export const config = {
     reminderAfterMinutes: 60,
     /** Minutes of inactivity before a session is deleted. */
     deleteAfterMinutes: 60 * 24, // 24 hours
+    /** Maximum failed OTP attempts before the session is reset. */
+    maxOtpAttempts: 3,
+    /** OTP validity window in minutes. */
+    otpExpiryMinutes: 10,
   },
 } as const

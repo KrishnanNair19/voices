@@ -54,3 +54,5 @@ android/.gradle/
 # Firebase credential files — keep out of source control
 GoogleService-Info.plist
 google-services.json
+functions/.env
+functions/.env.local
